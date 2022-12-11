@@ -1,0 +1,42 @@
+Assigment = Deplotment
+
+Assuming we have an image luksa/kubia:v1 deployed with name nodejs and replica count as 1 as follows:
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubia
+spec:
+  selector:
+    matchLabels:
+      app: kubia
+  replicas: 1
+  template:
+    metadata:
+      name: kubia
+      labels:
+        app: kubia
+    spec:
+      containers:
+      - image: luksa/kubia:v1
+        name: nodejs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubia
+spec:
+  type: ClusterIP 
+  selector:
+    app: kubia
+  ports:
+  - port: 80
+    targetPort: 8080
+
+Now if we want to change the image of the container nodejs to luksa/kubia:v2, then we need to do the following
+
+kubectl set image deployment kubia nodejs=luksa/kubia:v2
+
+Ideally to have zero downtime we need to have more than 1 replica and those should be on different nodes. Rolling updates help in zero downtime during rollout.
+Also .spec.minReadySeconds field can be set to ensure newly created Pod should be ready for the specified time without any of its containers crashing,
+for it to be considered available.
