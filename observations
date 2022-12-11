@@ -1,1 +1,58 @@
 Assignment = Voting App
+
+To delete the voting pod we use command
+
+kubectl delete po <voting pod name>
+
+This does not impact the voting application. App continues to work as replica set takes care to spawn one more voting pod.
+To ensure there is no downtime during spawning of new voting pod we can increase the replica count of voting pod deployment.
+
+To delete the worker pod we use the command
+
+kubectl delete po <worker pod name>
+
+This does not impact the voting application. App continues to work as replica set takes care to spawn one more worker pod.
+To ensure there is no downtime during spawning of new worker pod we can increase the replica count of worker pod deployment.
+Since the data is already stored by worker pod in db pod there is no impact to data due to deletion and respawing of worker pod. Only logs are lost.
+
+To collect logs during the deletion process we can sue the command
+
+kubectl logs <new worker pod name>
+
+To delete the db pod we use command
+
+kubectl delete po <db pod name>
+
+This impacts the Voting application as app stops working.(We may have to clear cache of browser to see the real impact)
+This is because the db pod stores the data from the app and deleting of the pod causes loss of data even though a new db pod is spawned.
+Other issue is even though the new db pod receives data from the worker pod when user votes, it does not update the result pod.
+This is the result app's problem that it is not able to connect and pull the data from the new db pod. This is because the connection that was established
+by the result app to the db using sockets is lost.
+
+To debug, if we check the result pods logs we will see that it reports that connection socket has been ended by the other party.
+It does not know that the old db does not exist anymore.
+
+Also if we see from the worker logs that it does not have any issue connecting to the new db.
+That is because result pod is connected synchronously to the db and when the db pod got recreated it lost the connection.
+The worker pod checks the connection and if there is a connection failure there is exception handling which causes a new connection to the db 
+which in turn respawns the worker container and that results in ensuring worker pod is able to work seemlessly.
+
+This indicates that all pods working without issue does not mean the overall app is working fine.
+We need to check the individual apps are working fine handling exceptions caused due to deployment in containers causing respawning of pods.
+
+To fix the result app connection issue, we need to delete the result pod, so that the new result pod comes up with a connection to the new db pod.
+
+kubectl delete po <result pod name>
+This is a temporary fix till the db pod is restarted sometime later and permanent fix is to change the result app to handle the exception due to 
+socket connection failure so that it also respawns whenever there is a restart/delete of db pod.
+
+This still does not fix the problem of loss of data caused by deletion of db pod. This is because once the db pod is deleted it is not recoverable.
+This storage isolation is something that we need to avoid. So we need to come up with a way to not loose data when db pod is recreated.
+We need data to be persistent even when pod is getting recreated.
+Containers are isolated and hence even if there are two containers within the same pod they can not share data. 
+So the first step of avoiding storage isolation is to ensure data is shared between containers of the same pod.
+Kubernetes Volume is used to share data between containers. Pod Volume shares data between containers of a pod.
+Using Hostpath Volume ensures data is persistent within the node and as long as node does not go down, we will have persistent data.
+We can use GitRepoVolume to ensure data is persistent even if the node goes down but this results in 24*7 guaranteed availability not being there.
+But the problem is Kubernetes considers Pod, Node and Cluster to be perishable. So to ensure the data persists even if the Pod, node or cluster are
+existing or not, we use PV and PVC combination supported by the NFS setup by Cluster admin.
