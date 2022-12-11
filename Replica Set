@@ -1,0 +1,5 @@
+Assignment = Replica Set
+
+Infrastructure related tasks such as log collection and resource monitoring need to be done on each node and hence use daemon set instead of replica set.
+Daemon set creates one pod on each existing node and ensures one pod exists on all the nodes and this is needed for log collection on each node and for 
+reource monitoring.
