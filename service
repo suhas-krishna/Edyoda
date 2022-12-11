@@ -1,0 +1,5 @@
+Assignment = Service
+
+If the nodeport is set, but the application is not reachable at the specified port, it could be because of following reasons:
+1. Ports are not configured correctly in nodeport
+2. Another service is using the same port.
